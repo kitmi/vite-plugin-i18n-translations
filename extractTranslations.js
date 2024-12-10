@@ -4,12 +4,15 @@ import path from 'path';
 import { globSync } from 'glob';
 
 function extractTranslations(config) {
+  let outputDir;
+  let namespaceMapping = {};
+
   return {
     name: 'vite-plugin-i18n-extract-translations',
-    apply: 'build',
-    async generateBundle(options, bundle) {
+    async buildStart() {
       const { ns: nsConfig, output: outputPath = 'locales' /* i.e. ./dist/locales */ } = config || {};
-      const translations = {}; // { [lang]: { [namespace]: { [key]: value } } }
+
+      outputDir = path.resolve(__dirname, 'public', outputPath);
 
       for (const [namespace, nsPath] of Object.entries(nsConfig)) {
         // Use glob to find all translation files under nsPath
@@ -17,42 +20,16 @@ function extractTranslations(config) {
         const files = globSync(pattern);
 
         for (const file of files) {
-          const { keyPrefix, lang } = parseFileName(path.basename(file));
-
-          const fileContent = await fs.promises.readFile(file, 'utf-8');
-          const jsonContent = JSON.parse(fileContent);
-
-          // Prefix keys with keyPrefix
-          const prefixedContent = {};
-          for (const [key, value] of Object.entries(jsonContent)) {
-            prefixedContent[`${keyPrefix}.${key}`] = value;
-          }
-
-          if (!translations[lang]) {
-            translations[lang] = {};
-          }
-
-          if (!translations[lang][namespace]) {
-            translations[lang][namespace] = {};
-          }
-
-          Object.assign(translations[lang][namespace], prefixedContent);
+          await extractLocaleFile(outputDir, file, namespace);
+          const id = path.resolve(file);
+          namespaceMapping[id] = namespace;
         }
       }
-
-      // Write the files into the bundle
-      for (const [lang, namespaces] of Object.entries(translations)) {
-        for (const [namespace, content] of Object.entries(namespaces)) {
-          const fileName = path.join(outputPath, lang, `${namespace}.json`);
-          const fileContent = JSON.stringify(content, null, 2);
-
-          // Add the file to the bundle
-          bundle[fileName] = {
-            fileName,
-            type: 'asset',
-            source: fileContent,
-          };
-        }
+    },
+    async watchChange(id) {      
+      const namespace = namespaceMapping[id];
+      if (namespace != null) {
+        await extractLocaleFile(outputDir, id, namespace);
       }
     },
   };
@@ -60,13 +37,49 @@ function extractTranslations(config) {
 
 function parseFileName(fileName) {
   // The pattern is: <key-prefix>.[<lang>].i18n.json
-  const match = fileName.match(/^(.*)\.\[([^\]]+)\]\.i18n\.json$/);
+  const match = fileName.match(/^(.*\.)?\[([^\]]+)\]\.i18n\.json$/);
+
   if (match) {
     const keyPrefix = match[1];
     const lang = match[2];
     return { keyPrefix, lang };
   } else {
     throw new Error(`Invalid translation file name: ${fileName}`);
+  }
+}
+
+async function extractLocaleFile(outputDir, file, namespace) {
+  let { keyPrefix, lang } = parseFileName(path.basename(file));
+  if (keyPrefix == null) {
+    keyPrefix = '';
+  }
+
+  let fileContent = await fs.promises.readFile(file, 'utf-8');
+  try {
+    const jsonContent = JSON.parse(fileContent);
+
+    // Prefix keys with keyPrefix
+    let prefixedContent = {};
+    for (const [key, value] of Object.entries(jsonContent)) {
+      prefixedContent[`${keyPrefix}${key}`] = value;
+    }
+
+    const dir = path.join(outputDir, lang);
+    const fileName = path.join(dir, `${namespace}.json`);
+    if (fs.existsSync(fileName)) {
+      const originalContent = JSON.parse(await fs.promises.readFile(fileName, 'utf-8'));
+      prefixedContent = Object.assign(originalContent, prefixedContent);
+    } else if (!fs.existsSync(dir)) {
+      // Write file to public
+
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    fileContent = JSON.stringify(prefixedContent, null, 2);
+
+    await fs.promises.writeFile(fileName, fileContent);
+    console.log(`Extracted i18n resource file: ${fileName}`);
+  } catch (e) {
   }
 }
 

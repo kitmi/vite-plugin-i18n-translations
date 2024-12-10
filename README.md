@@ -6,6 +6,7 @@ A Vite plugin package that provides two utilities for managing internationalizat
 
 - **extractTranslations**: Consolidates scattered component-level translation files by namespace into merged translation files during the build process.
 - **copyTranslations**: Copies consolidated translation files from node_modules directories to the application’s public folder for use at runtime.
+- **localeHotReload**: Enables hot reloading for localization files in your development environment. When changes are made to .i18n.json files, the plugin triggers a custom `locales-update` event via Vite’s WebSocket server, allowing your application to dynamically refresh localized content without requiring a full page reload. 
 
 ## Installation
 
@@ -36,6 +37,7 @@ export default defineConfig({
         // Source directories
       ],
     }),
+    localesHotReload(),
   ],
 });
 ```
