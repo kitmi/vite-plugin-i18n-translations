@@ -25,7 +25,7 @@ function copyTranslations(config) {
             path.join(srcDir, "locales"),
             file
           );
-          const destPath = path.join(publicDir, "locales", relativePath);
+          const destPath = path.resolve(publicDir, "locales", relativePath);
 
           // 确保目标目录存在
           await fs.promises.mkdir(path.dirname(destPath), { recursive: true });

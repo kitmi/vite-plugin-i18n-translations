@@ -1,22 +1,25 @@
 // vite-plugin-i18n-extract-translations.js
-import fs from 'fs';
-import path from 'path';
-import { globSync } from 'glob';
+import fs from "fs";
+import path from "path";
+import { globSync } from "glob";
 
 function extractTranslations(config) {
   let outputDir;
   let namespaceMapping = {};
 
   return {
-    name: 'vite-plugin-i18n-extract-translations',
+    name: "vite-plugin-i18n-extract-translations",
     async buildStart() {
-      const { ns: nsConfig, output: outputPath = 'locales' /* i.e. ./dist/locales */ } = config || {};
+      const {
+        ns: nsConfig,
+        output: outputPath = "./dist/locales" /* i.e. ./dist/locales */,
+      } = config || {};
 
-      outputDir = path.resolve(__dirname, 'public', outputPath);
+      outputDir = path.resolve(outputPath);
 
       for (const [namespace, nsPath] of Object.entries(nsConfig)) {
         // Use glob to find all translation files under nsPath
-        const pattern = path.join(nsPath, '**', '*.i18n.json');
+        const pattern = path.join(nsPath, "**", "*.i18n.json");
         const files = globSync(pattern);
 
         for (const file of files) {
@@ -26,7 +29,7 @@ function extractTranslations(config) {
         }
       }
     },
-    async watchChange(id) {      
+    async watchChange(id) {
       const namespace = namespaceMapping[id];
       if (namespace != null) {
         await extractLocaleFile(outputDir, id, namespace);
@@ -51,10 +54,10 @@ function parseFileName(fileName) {
 async function extractLocaleFile(outputDir, file, namespace) {
   let { keyPrefix, lang } = parseFileName(path.basename(file));
   if (keyPrefix == null) {
-    keyPrefix = '';
+    keyPrefix = "";
   }
 
-  let fileContent = await fs.promises.readFile(file, 'utf-8');
+  let fileContent = await fs.promises.readFile(file, "utf-8");
   try {
     const jsonContent = JSON.parse(fileContent);
 
@@ -67,7 +70,9 @@ async function extractLocaleFile(outputDir, file, namespace) {
     const dir = path.join(outputDir, lang);
     const fileName = path.join(dir, `${namespace}.json`);
     if (fs.existsSync(fileName)) {
-      const originalContent = JSON.parse(await fs.promises.readFile(fileName, 'utf-8'));
+      const originalContent = JSON.parse(
+        await fs.promises.readFile(fileName, "utf-8")
+      );
       prefixedContent = Object.assign(originalContent, prefixedContent);
     } else if (!fs.existsSync(dir)) {
       // Write file to public
@@ -79,8 +84,7 @@ async function extractLocaleFile(outputDir, file, namespace) {
 
     await fs.promises.writeFile(fileName, fileContent);
     console.log(`Extracted i18n resource file: ${fileName}`);
-  } catch (e) {
-  }
+  } catch (e) {}
 }
 
 export default extractTranslations;
