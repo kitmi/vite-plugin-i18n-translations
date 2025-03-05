@@ -1,11 +1,13 @@
 {
   "name": "vite-plugin-i18n-translations",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "Vite plugin to consolidate scattered component-level translation files and output to public folder",
   "main": "index.js",
   "type": "module",
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+
   },
   "author": "Rockie Guo <rockie@kitmi.com.au>",
   "repository": {
