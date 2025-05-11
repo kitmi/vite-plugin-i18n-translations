@@ -26,7 +26,10 @@ function copyTranslations(config) {
         }
         const localesPattern = path.join(localesRoot, "*", "*.json");
 
-        const files = globSync(localesPattern);
+        const files = globSync(
+          localesPattern,
+          process.platform === "win32" ? { windowsPathsNoEscape: true } : null
+        );
 
         for (const file of files) {
           const relativePath = path.relative(

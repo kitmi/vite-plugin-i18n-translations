@@ -20,7 +20,10 @@ function extractTranslations(config) {
       for (const [namespace, nsPath] of Object.entries(nsConfig)) {
         // Use glob to find all translation files under nsPath
         const pattern = path.join(nsPath, "**", "*.i18n.json");
-        const files = globSync(pattern);
+        const files = globSync(
+          pattern,
+          process.platform === "win32" ? { windowsPathsNoEscape: true } : null
+        );
 
         for (const file of files) {
           await extractLocaleFile(outputDir, file, namespace);
