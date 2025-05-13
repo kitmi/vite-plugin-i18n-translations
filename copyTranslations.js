@@ -28,7 +28,7 @@ function copyTranslations(config) {
 
         const files = globSync(
           localesPattern,
-          process.platform === "win32" ? { windowsPathsNoEscape: true } : null
+          process.platform === "win32" ? { windowsPathsNoEscape: true } : undefined
         );
 
         for (const file of files) {

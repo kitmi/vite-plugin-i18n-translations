@@ -22,7 +22,7 @@ function extractTranslations(config) {
         const pattern = path.join(nsPath, "**", "*.i18n.json");
         const files = globSync(
           pattern,
-          process.platform === "win32" ? { windowsPathsNoEscape: true } : null
+          process.platform === "win32" ? { windowsPathsNoEscape: true } : undefined
         );
 
         for (const file of files) {
