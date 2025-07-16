@@ -49,6 +49,10 @@ function copyTranslations(config) {
         (async () => {
           const watcher = fs.promises.watch(localesRoot, { recursive: true });
           for await (const event of watcher) {
+            if (event.filename === 'locales') { // the root folder will be emitted first, bug?
+              continue;
+            }         
+
             const fullPath = path.resolve(localesRoot, event.filename);
             if (!isDir(fullPath)) {
               const destPath = path.join(destRoot, event.filename);
