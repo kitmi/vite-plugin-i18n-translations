@@ -3,18 +3,36 @@ import fs from "fs";
 import path from "path";
 import { globSync } from "glob";
 
+function _set(object, prefix, key, value) {
+  const parts = prefix.split(".");
+
+  const lastKey = key;
+  let node = object;
+  let _key;
+  for (let i = 0; i < parts.length; i++) {
+    _key = parts[i];
+    if (node[_key] == null) {
+      node[_key] = {};
+    }
+    node = node[_key];
+  }
+
+  node[lastKey] = value;
+}
+
 function extractTranslations(config) {
   let outputDir;
   let namespaceMapping = {};
 
+  const {
+    ns: nsConfig,
+    output: outputPath = "./dist/locales" /* i.e. ./dist/locales */,
+    flatKey = false,
+  } = config || {};
+
   return {
     name: "vite-plugin-i18n-extract-translations",
     async buildStart() {
-      const {
-        ns: nsConfig,
-        output: outputPath = "./dist/locales" /* i.e. ./dist/locales */,
-      } = config || {};
-
       outputDir = path.resolve(outputPath);
 
       for (const [namespace, nsPath] of Object.entries(nsConfig)) {
@@ -22,11 +40,13 @@ function extractTranslations(config) {
         const pattern = path.join(nsPath, "**", "*.i18n.json");
         const files = globSync(
           pattern,
-          process.platform === "win32" ? { windowsPathsNoEscape: true } : undefined
+          process.platform === "win32"
+            ? { windowsPathsNoEscape: true }
+            : undefined
         );
 
         for (const file of files) {
-          await extractLocaleFile(outputDir, file, namespace);
+          await extractLocaleFile(outputDir, file, namespace, flatKey);
           const id = path.resolve(file);
           namespaceMapping[id] = namespace;
         }
@@ -35,7 +55,7 @@ function extractTranslations(config) {
     async watchChange(id) {
       const namespace = namespaceMapping[id];
       if (namespace != null) {
-        await extractLocaleFile(outputDir, id, namespace);
+        await extractLocaleFile(outputDir, id, namespace, flatKey);
       }
     },
   };
@@ -54,7 +74,7 @@ function parseFileName(fileName) {
   }
 }
 
-async function extractLocaleFile(outputDir, file, namespace) {
+async function extractLocaleFile(outputDir, file, namespace, flatKey) {
   let { keyPrefix, lang } = parseFileName(path.basename(file));
   if (keyPrefix == null) {
     keyPrefix = "";
@@ -65,9 +85,21 @@ async function extractLocaleFile(outputDir, file, namespace) {
     const jsonContent = JSON.parse(fileContent);
 
     // Prefix keys with keyPrefix
-    let prefixedContent = {};
-    for (const [key, value] of Object.entries(jsonContent)) {
-      prefixedContent[`${keyPrefix}${key}`] = value;
+    let prefixedContent;
+    if (keyPrefix) {
+      prefixedContent = {};
+      if (flatKey) {
+        for (const [key, value] of Object.entries(jsonContent)) {
+          prefixedContent[`${keyPrefix}${key}`] = value;
+        }
+      } else {
+        keyPrefix = keyPrefix.slice(0, -1);
+        for (const [key, value] of Object.entries(jsonContent)) {
+          _set(prefixedContent, keyPrefix, key, value);
+        }
+      }
+    } else {
+      prefixedContent = jsonContent;
     }
 
     const dir = path.join(outputDir, lang);
@@ -86,7 +118,7 @@ async function extractLocaleFile(outputDir, file, namespace) {
     fileContent = JSON.stringify(prefixedContent, null, 2);
 
     await fs.promises.writeFile(fileName, fileContent);
-    console.log(`Extracted i18n resource file: ${fileName}`);
+    console.log(`Extracted i18n resource file: ${file} -> ${fileName}`);
   } catch (e) {}
 }
 
